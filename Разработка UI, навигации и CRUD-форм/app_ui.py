@@ -4,19 +4,18 @@ from tkinter import ttk, messagebox
 
 
 def get_db_connection():
-    conn = sqlite3.connect("master_floor.db")
+    conn = sqlite3.connect("clean_storage.db")
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
 
 def format_date_to_human(date_str):
-    """Форматирование даты из ГГГГ-ММ-ДД в ДД.ММ.ГГГГ"""
+    """Преобразование ГГГГ-ММ-ДД в ДД.ММ.ГГГГ"""
     if not date_str:
         return ""
-    if "-" in date_str:
-        parts = date_str.split("-")
-        if len(parts) == 3:
-            return f"{parts[2]}.{parts[1]}.{parts[0]}"
+    parts = date_str.split("-")
+    if len(parts) == 3:
+        return f"{parts[2]}.{parts[1]}.{parts[0]}"
     return date_str
 
 
@@ -47,13 +46,8 @@ class PlaceholderEntry(tk.Entry):
 
 
 def get_partners_data(cursor):
-    """Корректная функция получения данных через аргумент cursor"""
-    query = """
-        SELECT p.id, pt.type_name, p.name, p.director_name, p.email, p.phone, p.rating
-        FROM partners p
-        JOIN partner_types pt ON p.type_id = pt.id
-        ORDER BY p.id DESC;
-    """
+    """Запрос данных партнеров через обязательный параметр cursor"""
+    query = "SELECT id, partner_name, inn, email FROM partners ORDER BY id ASC;"
     cursor.execute(query)
     return cursor.fetchall()
 
@@ -67,7 +61,7 @@ class PartnerEditWindow(tk.Toplevel):
         self.partner_id = partner_id
 
         self.title("CRM: Карточка партнера [Добавление]" if mode == "add" else "CRM: Карточка партнера [Редактирование]")
-        self.geometry("520x620")
+        self.geometry("500x480")
         self.configure(bg="#F4F4F4")
         self.resizable(False, False)
 
@@ -81,37 +75,22 @@ class PartnerEditWindow(tk.Toplevel):
     def create_widgets(self):
         header = tk.Frame(self, bg="#FFFFFF", pady=12, padx=20, bd=1, relief="solid")
         header.pack(fill="x")
-
-        title_lbl = "Создание карточки партнера" if self.mode == "add" else "Редактирование карточки"
+        title_lbl = "Новый партнер" if self.mode == "add" else "Редактирование партнера"
         tk.Label(header, text=title_lbl, font=("Segoe UI", 12, "bold"), bg="#FFFFFF", fg="#222222").pack(side="left")
 
         form = tk.Frame(self, bg="#F4F4F4", padx=25, pady=15)
         form.pack(fill="both", expand=True)
 
         tk.Label(form, text="Наименование партнера *", font=("Segoe UI", 9, "bold"), bg="#F4F4F4").pack(anchor="w")
-        self.name_entry = PlaceholderEntry(form, "Например: ООО 'Паркет 29'", font=("Segoe UI", 10), bd=1, relief="solid")
+        self.name_entry = PlaceholderEntry(form, "ООО 'Вектор'", font=("Segoe UI", 10), bd=1, relief="solid")
         self.name_entry.pack(fill="x", ipady=4, pady=(2, 8))
 
-        tk.Label(form, text="Тип партнера *", font=("Segoe UI", 9, "bold"), bg="#F4F4F4").pack(anchor="w")
-        self.type_combo = ttk.Combobox(form, font=("Segoe UI", 10), state="readonly")
-        self.type_combo.pack(fill="x", ipady=3, pady=(2, 8))
-        self.load_types()
-
-        tk.Label(form, text="Рейтинг *", font=("Segoe UI", 9, "bold"), bg="#F4F4F4").pack(anchor="w")
-        self.rating_entry = tk.Entry(form, font=("Segoe UI", 10), bd=1, relief="solid")
-        self.rating_entry.insert(0, "0")
-        self.rating_entry.pack(fill="x", ipady=4, pady=(2, 8))
-
-        tk.Label(form, text="ФИО директора", font=("Segoe UI", 9, "bold"), bg="#F4F4F4").pack(anchor="w")
-        self.director_entry = PlaceholderEntry(form, "Петров Петр Петрович", font=("Segoe UI", 10), bd=1, relief="solid")
-        self.director_entry.pack(fill="x", ipady=4, pady=(2, 8))
-
-        tk.Label(form, text="Телефон *", font=("Segoe UI", 9, "bold"), bg="#F4F4F4").pack(anchor="w")
-        self.phone_entry = PlaceholderEntry(form, "+7 (921) 555-44-33", font=("Segoe UI", 10), bd=1, relief="solid")
-        self.phone_entry.pack(fill="x", ipady=4, pady=(2, 8))
+        tk.Label(form, text="ИНН *", font=("Segoe UI", 9, "bold"), bg="#F4F4F4").pack(anchor="w")
+        self.inn_entry = PlaceholderEntry(form, "7701234567", font=("Segoe UI", 10), bd=1, relief="solid")
+        self.inn_entry.pack(fill="x", ipady=4, pady=(2, 8))
 
         tk.Label(form, text="Email *", font=("Segoe UI", 9, "bold"), bg="#F4F4F4").pack(anchor="w")
-        self.email_entry = PlaceholderEntry(form, "parket29@mail.ru", font=("Segoe UI", 10), bd=1, relief="solid")
+        self.email_entry = PlaceholderEntry(form, "vector@mail.ru", font=("Segoe UI", 10), bd=1, relief="solid")
         self.email_entry.pack(fill="x", ipady=4, pady=(2, 8))
 
         btn_box = tk.Frame(self, bg="#F4F4F4", padx=25, pady=15)
@@ -120,78 +99,49 @@ class PartnerEditWindow(tk.Toplevel):
         tk.Button(btn_box, text="Сохранить", font=("Segoe UI", 10, "bold"), bg="#67BA80", fg="#FFFFFF", padx=15, pady=6, relief="flat", command=self.save_data).pack(side="left")
         tk.Button(btn_box, text="Отмена", font=("Segoe UI", 10), bg="#FFFFFF", fg="#333333", padx=15, pady=6, command=self.destroy).pack(side="right")
 
-    def load_types(self):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT id, type_name FROM partner_types;")
-        self.types_map = {row[1]: row[0] for row in cursor.fetchall()}
-        self.type_combo["values"] = list(self.types_map.keys())
-        if self.type_combo["values"]:
-            self.type_combo.current(0)
-
     def load_data(self):
         cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT pt.type_name, p.name, p.director_name, p.email, p.phone, p.rating
-            FROM partners p JOIN partner_types pt ON p.type_id = pt.id WHERE p.id = ?;
-        """, (self.partner_id,))
+        cursor.execute("SELECT partner_name, inn, email FROM partners WHERE id = ?;", (self.partner_id,))
         row = cursor.fetchone()
         if row:
-            self.type_combo.set(row[0])
             self.name_entry.delete(0, tk.END)
-            self.name_entry.insert(0, row[1])
+            self.name_entry.insert(0, row[0])
             self.name_entry["fg"] = "#000000"
-            if row[2]:
-                self.director_entry.delete(0, tk.END)
-                self.director_entry.insert(0, row[2])
-                self.director_entry["fg"] = "#000000"
+
+            self.inn_entry.delete(0, tk.END)
+            self.inn_entry.insert(0, row[1])
+            self.inn_entry["fg"] = "#000000"
+
             self.email_entry.delete(0, tk.END)
-            self.email_entry.insert(0, row[3])
+            self.email_entry.insert(0, row[2])
             self.email_entry["fg"] = "#000000"
-            self.phone_entry.delete(0, tk.END)
-            self.phone_entry.insert(0, row[4])
-            self.phone_entry["fg"] = "#000000"
-            self.rating_entry.delete(0, tk.END)
-            self.rating_entry.insert(0, str(row[5]))
 
     def save_data(self):
         name = self.name_entry.get().strip()
+        inn = self.inn_entry.get().strip()
         email = self.email_entry.get().strip()
+
         if name == self.name_entry.placeholder or not name:
-            messagebox.showerror("Ошибка", "Заполните наименование партнера!")
+            messagebox.showwarning("Предупреждение", "Укажите наименование партнера!")
             return
-        if email == self.email_entry.placeholder or not email:
-            messagebox.showerror("Ошибка", "Заполните Email!")
+        if inn == self.inn_entry.placeholder or not inn:
+            messagebox.showwarning("Предупреждение", "Укажите ИНН партнера!")
             return
-
-        type_id = self.types_map.get(self.type_combo.get(), 1)
-        director = self.director_entry.get().strip()
-        if director == self.director_entry.placeholder:
-            director = ""
-        phone = self.phone_entry.get().strip()
-        if phone == self.phone_entry.placeholder:
-            phone = ""
-
-        try:
-            rating = int(self.rating_entry.get().strip())
-        except ValueError:
-            messagebox.showerror("Ошибка", "Рейтинг должен быть целым числом!")
+        if email == self.email_entry.placeholder or not email or "@" not in email:
+            messagebox.showerror("Ошибка", "Укажите корректный Email!")
             return
 
         cursor = self.conn.cursor()
-        if self.mode == "add":
-            cursor.execute("""
-                INSERT INTO partners (type_id, name, director_name, email, phone, inn, rating)
-                VALUES (?, ?, ?, ?, ?, ?, ?);
-            """, (type_id, name, director, email, phone, f"78{hash(name)%100000000:08d}", rating))
-        else:
-            cursor.execute("""
-                UPDATE partners SET type_id=?, name=?, director_name=?, email=?, phone=?, rating=?
-                WHERE id=?;
-            """, (type_id, name, director, email, phone, rating, self.partner_id))
-
-        self.conn.commit()
-        self.parent.refresh_list()
-        self.destroy()
+        try:
+            if self.mode == "add":
+                cursor.execute("INSERT INTO partners (partner_name, inn, email) VALUES (?, ?, ?);", (name, inn, email))
+            else:
+                cursor.execute("UPDATE partners SET partner_name=?, inn=?, email=? WHERE id=?;", (name, inn, email, self.partner_id))
+            self.conn.commit()
+            self.parent.refresh_list()
+            self.destroy()
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Ошибка БД", "Партнер с таким ИНН или Email уже существует!")
 
 
 class PartnerHistoryWindow(tk.Toplevel):
@@ -201,8 +151,8 @@ class PartnerHistoryWindow(tk.Toplevel):
         self.conn = conn
         self.partner_id = partner_id
 
-        self.title(f"CRM: История реализации — {partner_name}")
-        self.geometry("650x420")
+        self.title(f"CRM: История продаж — {partner_name}")
+        self.geometry("650x400")
         self.configure(bg="#F4F4F4")
 
         self.transient(parent)
@@ -210,20 +160,22 @@ class PartnerHistoryWindow(tk.Toplevel):
 
         header = tk.Frame(self, bg="#FFFFFF", pady=10, padx=15, bd=1, relief="solid")
         header.pack(fill="x")
-        tk.Label(header, text=f"История реализации продукции: {partner_name}", font=("Segoe UI", 11, "bold"), bg="#FFFFFF").pack(side="left")
+        tk.Label(header, text=f"История реализации: {partner_name}", font=("Segoe UI", 11, "bold"), bg="#FFFFFF").pack(side="left")
 
         container = tk.Frame(self, bg="#F4F4F4", padx=15, pady=15)
         container.pack(fill="both", expand=True)
 
-        cols = ("product_name", "quantity", "sale_date")
-        self.tree = ttk.Treeview(container, columns=cols, show="headings", height=10)
-        self.tree.heading("product_name", text="Продукция")
-        self.tree.heading("quantity", text="Количество (шт.)")
+        cols = ("product_name", "quantity", "amount", "sale_date")
+        self.tree = ttk.Treeview(container, columns=cols, show="headings", height=9)
+        self.tree.heading("product_name", text="Товар")
+        self.tree.heading("quantity", text="Кол-во (шт.)")
+        self.tree.heading("amount", text="Сумма (руб.)")
         self.tree.heading("sale_date", text="Дата продажи")
 
-        self.tree.column("product_name", width=300, anchor="w")
-        self.tree.column("quantity", width=120, anchor="center")
-        self.tree.column("sale_date", width=140, anchor="center")
+        self.tree.column("product_name", width=220, anchor="w")
+        self.tree.column("quantity", width=100, anchor="center")
+        self.tree.column("amount", width=120, anchor="e")
+        self.tree.column("sale_date", width=120, anchor="center")
 
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -237,7 +189,7 @@ class PartnerHistoryWindow(tk.Toplevel):
         cursor = self.conn.cursor()
         
         query = """
-            SELECT pr.product_name, sh.quantity, sh.sale_date
+            SELECT pr.product_name, sh.quantity, sh.amount, sh.sale_date
             FROM sales_history sh
             JOIN products pr ON sh.product_id = pr.id
             WHERE sh.partner_id = ?
@@ -245,35 +197,30 @@ class PartnerHistoryWindow(tk.Toplevel):
         """
         cursor.execute(query, (self.partner_id,))
         for row in cursor.fetchall():
-            
-            formatted_date = format_date_to_human(row[2])
-            self.tree.insert("", "end", values=(row[0], f"{row[1]} шт.", formatted_date))
+            formatted_date = format_date_to_human(row[3])
+            self.tree.insert("", "end", values=(row[0], f"{row[1]} шт.", f"{row[2]:,.2f} руб.", formatted_date))
 
 
 class MainWindow(tk.Tk):
     def __init__(self, conn):
         super().__init__()
         self.conn = conn
-        self.title("CRM: Мастер Пол — Реестр партнеров")
-        self.geometry("820x620")
+        self.title("CRM: Реестр партнеров")
+        self.geometry("800x550")
         self.configure(bg="#F4F4F4")
 
-        self.set_icon()
         self.edit_window = None
         self.history_window = None
 
         header = tk.Frame(self, bg="#FFFFFF", padx=20, pady=12, bd=1, relief="solid")
         header.pack(fill="x")
 
-        logo_canvas = tk.Canvas(header, width=40, height=40, bg="#67BA80", highlightthickness=0)
-        logo_canvas.pack(side="left", padx=(0, 15))
-        logo_canvas.create_oval(5, 5, 35, 35, fill="#FFFFFF", outline="")
-        logo_canvas.create_text(20, 20, text="МП", font=("Segoe UI", 10, "bold"), fill="#67BA80")
+        logo_canvas = tk.Canvas(header, width=36, height=36, bg="#67BA80", highlightthickness=0)
+        logo_canvas.pack(side="left", padx=(0, 12))
+        logo_canvas.create_oval(4, 4, 32, 32, fill="#FFFFFF", outline="")
+        logo_canvas.create_text(18, 18, text="МП", font=("Segoe UI", 9, "bold"), fill="#67BA80")
 
-        title_box = tk.Frame(header, bg="#FFFFFF")
-        title_box.pack(side="left")
-        tk.Label(title_box, text="Мастер Пол", font=("Segoe UI", 14, "bold"), bg="#FFFFFF", fg="#222222").pack(anchor="w")
-        tk.Label(title_box, text="Система взаимодействия с партнерами", font=("Segoe UI", 9), bg="#FFFFFF", fg="#777777").pack(anchor="w")
+        tk.Label(header, text="Реестр партнеров и продаж", font=("Segoe UI", 13, "bold"), bg="#FFFFFF").pack(side="left")
 
         controls = tk.Frame(self, bg="#F4F4F4", padx=20, pady=10)
         controls.pack(fill="x")
@@ -285,14 +232,6 @@ class MainWindow(tk.Tk):
 
         self.refresh_list()
 
-    def set_icon(self):
-        try:
-            icon_img = tk.PhotoImage(width=16, height=16)
-            icon_img.put("#67BA80", to=(0, 0, 15, 15))
-            self.iconphoto(True, icon_img)
-        except Exception:
-            pass
-
     def refresh_list(self):
         for widget in self.list_frame.winfo_children():
             widget.destroy()
@@ -301,17 +240,17 @@ class MainWindow(tk.Tk):
         partners = get_partners_data(cursor)
 
         for p in partners:
-            pid, ptype, name, director, email, phone, rating = p
+            pid, name, inn, email = p
             card = tk.Frame(self.list_frame, bg="#FFFFFF", bd=1, relief="solid", padx=15, pady=10)
-            card.pack(fill="x", pady=5)
+            card.pack(fill="x", pady=4)
 
             top = tk.Frame(card, bg="#FFFFFF")
             top.pack(fill="x")
 
-            tk.Label(top, text=f"{ptype} | {name}", font=("Segoe UI", 11, "bold"), bg="#FFFFFF").pack(side="left")
+            tk.Label(top, text=f"ID {pid}: {name}", font=("Segoe UI", 11, "bold"), bg="#FFFFFF").pack(side="left")
             tk.Button(top, text="История реализации", font=("Segoe UI", 9), bg="#FFFFFF", command=lambda partner_id=pid, partner_name=name: self.open_history(partner_id, partner_name)).pack(side="right")
 
-            tk.Label(card, text=f"Директор: {director or 'Не указан'} | Тел: {phone} | Рейтинг: {rating}", font=("Segoe UI", 9), bg="#FFFFFF", fg="#555555").pack(anchor="w", pady=(4, 0))
+            tk.Label(card, text=f"ИНН: {inn} | Email: {email}", font=("Segoe UI", 9), bg="#FFFFFF", fg="#555555").pack(anchor="w", pady=(2, 0))
 
     def open_add_partner(self):
         if self.edit_window is None or not self.edit_window.winfo_exists():
